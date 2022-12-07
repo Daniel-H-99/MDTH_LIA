@@ -1,0 +1,8 @@
+test
+*.mp4
+*.png
+*.tar
+res/*
+checkpoints/*
+__pycache__/*
+
