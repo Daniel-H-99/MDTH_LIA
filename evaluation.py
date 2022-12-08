@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from networks.generator import Generator
+from networks.generator import ExpGenerator
 import argparse
 import numpy as np
 import torchvision
@@ -76,7 +76,7 @@ class EvaPipeline(nn.Module):
         # os.makedirs(os.path.join(self.save_path, args.dataset), exist_ok=True)
 
         print('==> loading model')
-        self.gen = Generator(args.size, args.latent_dim_style, args.latent_dim_motion, args.channel_multiplier).cuda()
+        self.gen = ExpGenerator(args.size, args.latent_dim_style, args.latent_dim_motion, args.exp_dim, args.channel_multiplier).cuda()
         weight = torch.load(args.ckpt, map_location=lambda storage, loc: storage)['gen']
         self.gen.load_state_dict(weight)
         self.gen.eval()
@@ -142,7 +142,7 @@ class EvaPipeline(nn.Module):
             if len(driving_frame) < bs:
                 source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
                 source = source.to(device)
-            prediction = self.gen(source, driving_frame)
+            prediction = self.gen(source, driving_frame)['img_recon']
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
 
         vid = np.concatenate(predictions, axis=0).clip(-1, 1)

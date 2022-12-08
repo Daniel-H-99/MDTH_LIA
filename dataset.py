@@ -31,23 +31,30 @@ class Vox256(Dataset):
         self.transform = transform
 
     def __getitem__(self, idx):
-        video_path = os.path.join(self.ds_path, self.videos[idx])
-        frames_paths = sorted(glob.glob(video_path + '/*.png'))
-        nframes = len(frames_paths)
+        while True:
+            try:
+                video_path = os.path.join(self.ds_path, self.videos[idx])
+                frames_paths = sorted(glob.glob(video_path + '/*.png'))
+                nframes = len(frames_paths)
+                items = random.sample(list(range(nframes)), 2)
+                img_source = Image.open(frames_paths[items[0]]).convert('RGB')
+                img_target = Image.open(frames_paths[items[1]]).convert('RGB')
 
-        items = random.sample(list(range(nframes)), 2)
+                if self.augmentation:
+                    img_source, img_target = self.aug(img_source, img_target)
 
-        img_source = Image.open(frames_paths[items[0]]).convert('RGB')
-        img_target = Image.open(frames_paths[items[1]]).convert('RGB')
+                if self.transform is not None:
+                    img_source = self.transform(img_source)
+                    img_target = self.transform(img_target)
+                break
 
-        if self.augmentation:
-            img_source, img_target = self.aug(img_source, img_target)
+            except Exception as e:
+                print(f'error: {e}')
+                idx = (idx + 1) % len(self.videos)
+                continue
+            
+        return img_source, img_target
 
-        if self.transform is not None:
-            img_source = self.transform(img_source)
-            img_target = self.transform(img_target)
-
-            return img_source, img_target
 
     def __len__(self):
         return len(self.videos)

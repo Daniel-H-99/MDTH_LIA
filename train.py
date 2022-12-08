@@ -34,11 +34,13 @@ def display_img(idx, img, name, writer):
     writer.add_images(tag='%s' % (name), global_step=idx, img_tensor=img)
 
 
-def write_loss(i, vgg_loss, l1_loss, g_loss, d_loss, writer):
+def write_loss(i, vgg_loss, l1_loss, g_loss, d_loss, u_loss, k_loss, writer):
     writer.add_scalar('vgg_loss', vgg_loss.item(), i)
     writer.add_scalar('l1_loss', l1_loss.item(), i)
     writer.add_scalar('gen_loss', g_loss.item(), i)
     writer.add_scalar('dis_loss', d_loss.item(), i)
+    writer.add_scalar('unif_loss', u_loss.item(), i)
+    writer.add_scalar('kd_loss', k_loss.item(), i)
     writer.flush()
 
 
@@ -123,14 +125,14 @@ def main(rank, world_size, args):
         img_target = img_target.to(rank, non_blocking=True)
 
         # update generator
-        vgg_loss, l1_loss, gan_g_loss, img_recon = trainer.gen_update(img_source, img_target)
+        vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target)
 
         # update discriminator
         gan_d_loss = trainer.dis_update(img_target, img_recon)
 
         if rank == 0:
             # write to log
-            write_loss(idx, vgg_loss, l1_loss, gan_g_loss, gan_d_loss, writer)
+            write_loss(idx, vgg_loss, l1_loss, gan_g_loss, gan_d_loss, unif_loss, kd_loss, writer)
 
         # display
         if i % args.display_freq == 0 and rank == 0:
@@ -161,22 +163,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--iter", type=int, default=800000)
     parser.add_argument("--size", type=int, default=256)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--d_reg_every", type=int, default=16)
     parser.add_argument("--g_reg_every", type=int, default=4)
     parser.add_argument("--resume_ckpt", type=str, default=None)
     parser.add_argument("--lr", type=float, default=0.002)
     parser.add_argument("--channel_multiplier", type=int, default=1)
     parser.add_argument("--start_iter", type=int, default=0)
-    parser.add_argument("--display_freq", type=int, default=5000)
-    parser.add_argument("--save_freq", type=int, default=1000)
+    parser.add_argument("--display_freq", type=int, default=500)
+    parser.add_argument("--save_freq", type=int, default=500)
     parser.add_argument("--latent_dim_style", type=int, default=512)
     parser.add_argument("--latent_dim_motion", type=int, default=20)
     parser.add_argument("--dataset", type=str, default='vox')
-    parser.add_argument("--exp_path", type=str, default='./exps/')
+    parser.add_argument("--exp_path", type=str, default='/mnt/hdd/minyeong_workspace/checkpoints/MDTH_LIA/')
     parser.add_argument("--exp_name", type=str, default='v1')
     parser.add_argument("--addr", type=str, default='localhost')
     parser.add_argument("--port", type=str, default='12345')
+    parser.add_argument("--exp_dim", type=int, default=20)
     opts = parser.parse_args()
 
     n_gpus = torch.cuda.device_count()
