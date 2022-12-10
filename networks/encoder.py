@@ -283,15 +283,17 @@ class ExpEncoder(nn.Module):
 
         return h_motion
 
-    def enc_motion_by_exp(self, h_app, h_app_id=None):
+    def enc_motion_by_exp(self, h_app, h_app_id=None, h_exp=None):
         if h_app_id is None:
             h_app_id = h_app
-        h_exp =  self.exp_fc(h_app)
+        if h_exp is None:
+            h_exp =  self.exp_fc(h_app)
         h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
         h_motion = self.exp_decoder(h_exp_id)
         return h_motion, h_exp
 
-    def forward(self, input_source, input_target):
+
+    def forward(self, input_source, input_target, h_exp=None):
 
         res = {}
         if input_target is not None:
@@ -301,7 +303,7 @@ class ExpEncoder(nn.Module):
 
             h_motion_target = self.fc(h_target)
             h_motion_src, h_exp_src = self.enc_motion_by_exp(h_source)
-            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_target, h_source)
+            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_target, h_source, h_exp=h_exp)
 
             h_motion = [h_motion_target]
 

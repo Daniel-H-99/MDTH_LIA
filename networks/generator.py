@@ -18,9 +18,15 @@ class ExpGenerator(nn.Module):
 
         return img
 
-    def forward(self, img_source, img_drive):
+    def encode(self, img_source, img_drive):
         res = {}
         enc = self.enc(img_source, img_drive)
+        res.update(enc)
+        return res
+
+    def forward(self, img_source, img_drive, h_exp=None):
+        res = {}
+        enc = self.enc(img_source, img_drive, h_exp=h_exp)
         res.update(enc)
         wa = enc['h_source']
         alpha = enc['h_motion']

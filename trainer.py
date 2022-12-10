@@ -73,7 +73,7 @@ class Trainer(nn.Module):
 
 
     def kd_motion_loss(self, gen):
-        loss_weight = 1
+        loss_weight = 0
         h_motion = gen['h_motion']
         h_motion_tf  = gen['h_motion_tf']
         return F.l1_loss(h_motion, h_motion_tf)
@@ -82,7 +82,8 @@ class Trainer(nn.Module):
         self.gen.train()
         self.gen.zero_grad()
 
-        requires_grad(self.gen, True, query=['exp'])
+        requires_grad(self.gen, True)
+        # requires_grad(self.gen, True, query=['exp'])
         requires_grad(self.dis, False)
 
         # img_target_recon = self.gen(img_source, img_target)

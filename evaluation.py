@@ -14,6 +14,7 @@ from PIL import Image
 from skimage.transform import resize
 from skimage import img_as_ubyte, img_as_float32
 import imageio
+from one_euro_filter import OneEuroFilter
 
 def data_sampler(dataset, shuffle):
     if shuffle:
@@ -48,6 +49,39 @@ def data_preprocessing(img_path, size):
     imgs_norm = (img - 0.5) * 2.0  # [-1, 1]
 
     return imgs_norm
+
+def filter_values(values, th=1.0, scale=1):
+    MIN_CUTOFF = th
+    BETA = th
+    num_frames = len(values)
+    fps = 25
+    times = np.linspace(0, num_frames / fps, num_frames)
+    
+    filtered_values= []
+    
+    values = values * scale
+    
+    for i, x in enumerate(values):
+        if i == 0:
+            filter_value = OneEuroFilter(times[0], x, min_cutoff=MIN_CUTOFF, beta=BETA)
+        else:
+            x = filter_value(times[i], x)
+        
+        filtered_values.append(x)
+        
+    res = np.array(filtered_values)
+    res = res / scale
+    return res
+
+def filter_matrix(mat, th=1.0, scale=1):
+    # mat: B x d
+    filtered_mat = []
+    for values in mat:
+        filtered_values = filter_values(values)
+        filtered_mat.append(filtered_values)
+    filtered_mat = np.stack(filtered_mat, axis=0)
+
+    return filtered_mat
 
 class EvaPipeline(nn.Module):
     def __init__(self, args):
@@ -136,14 +170,29 @@ class EvaPipeline(nn.Module):
         # source = source.to(device)
         source = source_image
         
+        # h_exps = []
+        # for frame_idx in tqdm(range(0, len(driving_video), bs)):
+        #     driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
+        #     if len(driving_frame) < bs:
+        #         source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+        #         source = source.to(device)
+        #     h_exp = self.gen.encode(source, driving_frame)['h_exp_drv'].detach().cpu().numpy()
+        #     h_exps.append(h_exp)
+
+        # h_exps = np.concatenate(h_exps, axis=0)
+        # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
+        
         predictions = []
         for frame_idx in tqdm(range(0, len(driving_video), bs)):
             driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
             if len(driving_frame) < bs:
                 source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
                 source = source.to(device)
+            # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
+            # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
             prediction = self.gen(source, driving_frame)['img_recon']
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
+
 
         vid = np.concatenate(predictions, axis=0).clip(-1, 1)
         vid = (vid - vid.min()) / (vid.max() - vid.min())
