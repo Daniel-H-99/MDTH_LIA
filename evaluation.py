@@ -142,6 +142,7 @@ class EvaPipeline(nn.Module):
             if len(driving_frame) < bs:
                 source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
                 source = source.to(device)
+            
             prediction = self.gen(source, driving_frame)
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
 
