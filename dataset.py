@@ -38,7 +38,12 @@ class Vox256(Dataset):
                 nframes = len(frames_paths)
                 items = random.sample(list(range(nframes)), 2)
                 img_source = Image.open(frames_paths[items[0]]).convert('RGB')
+                target_index = items[1]
+                target_prev = max(0, target_index - 1)
+                target_next = min(nframes - 1, target_index + 1)
                 img_target = Image.open(frames_paths[items[1]]).convert('RGB')
+                img_prev = Image.open(frames_paths[target_prev]).convert('RGB')
+                img_next = Image.open(frames_paths[target_next]).convert('RGB')
 
                 if self.augmentation:
                     img_source, img_target = self.aug(img_source, img_target)
@@ -46,6 +51,8 @@ class Vox256(Dataset):
                 if self.transform is not None:
                     img_source = self.transform(img_source)
                     img_target = self.transform(img_target)
+                    img_prev = self.transform(img_prev)
+                    img_next = self.transform(img_next)
                 break
 
             except Exception as e:
@@ -53,7 +60,7 @@ class Vox256(Dataset):
                 idx = (idx + 1) % len(self.videos)
                 continue
             
-        return img_source, img_target
+        return img_source, img_target, img_prev, img_next
 
 
     def __len__(self):

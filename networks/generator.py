@@ -1,5 +1,5 @@
 from torch import nn
-from .encoder import ExpEncoder
+from .encoder import ExpSeqEncoder
 from .styledecoder import Synthesis
 
 class ExpGenerator(nn.Module):
@@ -7,7 +7,7 @@ class ExpGenerator(nn.Module):
         super(ExpGenerator, self).__init__()
 
         # encoder
-        self.enc = ExpEncoder(size, style_dim, motion_dim, exp_dim)
+        self.enc = ExpSeqEncoder(size, style_dim, motion_dim, exp_dim)
         self.dec = Synthesis(size, style_dim, motion_dim, blur_kernel, channel_multiplier)
 
     def get_direction(self):
@@ -24,9 +24,9 @@ class ExpGenerator(nn.Module):
         res.update(enc)
         return res
 
-    def forward(self, img_source, img_drive, h_exp=None):
+    def forward(self, img_source, img_drive, img_prev, img_next, h_exp=None, noise=None):
         res = {}
-        enc = self.enc(img_source, img_drive, h_exp=h_exp)
+        enc = self.enc(img_source, img_drive, img_prev, img_next, h_exp=h_exp, noise=noise)
         res.update(enc)
         wa = enc['h_source']
         alpha = enc['h_motion']

@@ -73,23 +73,23 @@ class Trainer(nn.Module):
 
 
     def kd_motion_loss(self, gen):
-        loss_weight = 0
+        loss_weight = 1
         h_motion = gen['h_motion']
         h_motion_tf  = gen['h_motion_tf']
         return F.l1_loss(h_motion, h_motion_tf)
 
-    def gen_update(self, img_source, img_target):
+    def gen_update(self, img_source, img_target, img_prev, img_next, noise=None):
         self.gen.train()
         self.gen.zero_grad()
 
-        requires_grad(self.gen, True)
-        # requires_grad(self.gen, True, query=['exp'])
+        # requires_grad(self.gen, True)
+        requires_grad(self.gen, True, query=['exp'])
         requires_grad(self.dis, False)
 
         # img_target_recon = self.gen(img_source, img_target)
         # img_recon_pred = self.dis(img_target_recon)
-
-        gen_res = self.gen(img_source, img_target)
+        print(f'noise: {noise}')
+        gen_res = self.gen(img_source, img_target, img_prev, img_next, noise=noise)
         img_target_recon = gen_res['img_recon']
         img_recon_pred = self.dis(img_target_recon)
 
@@ -121,12 +121,12 @@ class Trainer(nn.Module):
 
         return d_loss
 
-    def sample(self, img_source, img_target):
+    def sample(self, img_source, img_target, img_test_prev, img_test_next):
         with torch.no_grad():
             self.gen.eval()
 
-            img_recon = self.gen(img_source, img_target)['img_recon']
-            img_source_ref = self.gen(img_source, None)['img_recon']
+            img_recon = self.gen(img_source, img_target, img_test_prev, img_test_next)['img_recon']
+            img_source_ref = self.gen(img_source, None, None, None)['img_recon']
 
         return img_recon, img_source_ref
 

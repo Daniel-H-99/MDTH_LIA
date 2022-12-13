@@ -9,10 +9,14 @@ from trainer import Trainer
 from torch.utils.tensorboard import SummaryWriter
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import numpy as np
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
+
+def cos_aneal(it, max_iter):
+    return np.cos(np.pi / 2 * it / max_iter)
 
 def data_sampler(dataset, shuffle):
     if shuffle:
@@ -116,16 +120,18 @@ def main(rank, world_size, args):
 
     print('==> training')
     pbar = range(args.iter)
+    MAX_ITER = 9000
     for idx in pbar:
         i = idx + args.start_iter
 
         # laoding data
-        img_source, img_target = next(loader)
+        img_source, img_target, img_prev, img_next = next(loader)
         img_source = img_source.to(rank, non_blocking=True)
         img_target = img_target.to(rank, non_blocking=True)
-
+        img_prev = img_prev.to(rank, non_blocking=True)
+        img_next = img_next.to(rank, non_blocking=True)
         # update generator
-        vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target)
+        vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=0.2 * cos_aneal(i, MAX_ITER))
 
         # update discriminator
         gan_d_loss = trainer.dis_update(img_target, img_recon)
@@ -140,11 +146,13 @@ def main(rank, world_size, args):
                   % (i, args.iter, vgg_loss.item(), l1_loss.item(), gan_g_loss.item(), gan_d_loss.item()))
 
             if rank == 0:
-                img_test_source, img_test_target = next(loader_test)
+                img_test_source, img_test_target, img_test_prev, img_test_next = next(loader_test)
                 img_test_source = img_test_source.to(rank, non_blocking=True)
                 img_test_target = img_test_target.to(rank, non_blocking=True)
+                img_test_prev = img_test_prev.to(rank, non_blocking=True)
+                img_test_next = img_test_next.to(rank, non_blocking=True)
 
-                img_recon, img_source_ref = trainer.sample(img_test_source, img_test_target)
+                img_recon, img_source_ref = trainer.sample(img_test_source, img_test_target, img_test_prev, img_test_next)
                 display_img(i, img_test_source, 'source', writer)
                 display_img(i, img_test_target, 'target', writer)
                 display_img(i, img_recon, 'recon', writer)

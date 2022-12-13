@@ -183,14 +183,15 @@ class EvaPipeline(nn.Module):
         # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
         
         predictions = []
+        driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
         for frame_idx in tqdm(range(0, len(driving_video), bs)):
-            driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
-            if len(driving_frame) < bs:
-                source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
-                source = source.to(device)
+            driving_frame = driving_video_padded[frame_idx:frame_idx+bs+2].to(device)
+            # if len(driving_frame) < bs + 1:
+            #     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+            #     source = source.to(device)
             # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
             # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
-            prediction = self.gen(source, driving_frame)['img_recon']
+            prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])['img_recon']
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
 
 

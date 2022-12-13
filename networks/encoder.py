@@ -307,6 +307,7 @@ class ExpEncoder(nn.Module):
 
             h_motion = [h_motion_target]
 
+            # h_motion_drv = h_source
             res['h_source'] = h_source
             res['h_motion'] = h_motion_drv
             res['feats'] = feats
@@ -321,6 +322,99 @@ class ExpEncoder(nn.Module):
             res['h_motion'] = None
             res['feats'] = feats
             return res
+
+class ExpSeqEncoder(nn.Module):
+    def __init__(self, size, dim=512, dim_motion=20, exp_dim=20):
+        super(ExpSeqEncoder, self).__init__()
+
+        # appearance netmork
+        self.net_app = EncoderApp(size, dim)
+
+        # motion network
+        fc = [EqualLinear(dim, dim)]
+        for i in range(3):
+            fc.append(EqualLinear(dim, dim))
+
+        fc.append(EqualLinear(dim, dim_motion))
+        self.fc = nn.Sequential(*fc)
+
+        # expression network
+        exp_fc = [EqualLinear(3 * dim, dim)]
+        for i in range(3):
+            exp_fc.append(EqualLinear(dim, dim))
+
+        exp_fc.append(EqualLinear(dim, exp_dim))
+        exp_fc.append(nn.Tanh())
+        self.exp_fc = nn.Sequential(*exp_fc)
+
+        # motion decoder
+        exp_decoder = [EqualLinear(dim + exp_dim, dim)]
+        for i in range(3):
+            exp_decoder.append(EqualLinear(dim, dim))
+
+        exp_decoder.append(EqualLinear(dim, dim_motion))
+        self.exp_decoder = nn.Sequential(*exp_decoder)
+
+    def enc_app(self, x):
+
+        h_source = self.net_app(x)
+
+        return h_source
+
+    def enc_motion(self, x):
+
+        h, _ = self.net_app(x)
+        h_motion = self.fc(h)
+
+        return h_motion
+
+    def enc_motion_by_exp(self, h_app, h_app_id=None, h_exp=None, noise=None):
+        if h_app_id is None:
+            h_app_id = h_app
+        if h_exp is None:
+            h_exp =  self.exp_fc(h_app)
+        if noise is not None:
+            h_exp = h_exp + noise * torch.randn_like(h_exp)
+        h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
+        h_motion = self.exp_decoder(h_exp_id)
+        return h_motion, h_exp
+
+
+    def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, noise=None):
+
+        res = {}
+        if input_target is not None:
+
+            h_source, feats = self.net_app(input_source)
+            h_target, _ = self.net_app(input_target)
+            h_prev, _ = self.net_app(input_prev)
+            h_next, _ = self.net_app(input_next)
+
+            h_src = torch.cat([h_source, h_source, h_source], dim=-1)
+
+            h_drv = torch.cat([h_prev, h_target, h_next], dim=-1)
+
+            h_motion_target = self.fc(h_target)
+            h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise)
+            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise)
+
+            h_motion = [h_motion_target]
+
+            res['h_source'] = h_source
+            res['h_motion'] = h_motion_drv
+            res['feats'] = feats
+            res['h_exp_src'] = h_exp_src
+            res['h_exp_drv'] = h_exp_drv
+            res['h_motion_tf'] = h_motion_target
+
+            return res
+        else:
+            h_source, feats = self.net_app(input_source)
+            res['h_source'] = h_source
+            res['h_motion'] = None
+            res['feats'] = feats
+            return res
+
 
 
 class EncoderApp(nn.Module):
