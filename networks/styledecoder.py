@@ -517,7 +517,7 @@ class Synthesis(nn.Module):
                 latent = wa + directions  # wa + directions
         else:
             latent = wa
-
+            
         inject_index = self.n_latent
         latent = latent.unsqueeze(1).repeat(1, inject_index, 1)
 

@@ -140,19 +140,21 @@ class EvaPipeline(nn.Module):
             x = x[None].to(device)
             return x
 
-        
-        driving_frames_path = os.listdir(os.path.join(opt.driving_dir, 'frames'))
-        driving_video = []
-        fids = []
-        for frame_path in driving_frames_path:
-            driving_frame = get_frame(os.path.join(opt.driving_dir, 'frames', frame_path))
-            driving_video.append(driving_frame)
-            fid = int(frame_path.split('.png')[0])
-            fids.append(fid)
-            
-        order = torch.tensor(fids).argsort()
-        driving_video = torch.cat(driving_video, dim=0)[order]
-        
+        if 'frames' in os.listdir(opt.driving_dir):
+            driving_frames_path = os.listdir(os.path.join(opt.driving_dir, 'frames'))
+            driving_video = []
+            fids = []
+            for frame_path in driving_frames_path:
+                driving_frame = get_frame(os.path.join(opt.driving_dir, 'frames', frame_path))
+                driving_video.append(driving_frame)
+                fid = int(frame_path.split('.png')[0])
+                fids.append(fid)
+            order = torch.tensor(fids).argsort()
+            driving_video = torch.cat(driving_video, dim=0)[order]
+        else:
+            driving_image = get_frame(os.path.join(opt.driving_dir, 'image.png'))
+            driving_video = driving_image
+
         if opt.source_dir.endswith('.mp4'):
             source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
         else:

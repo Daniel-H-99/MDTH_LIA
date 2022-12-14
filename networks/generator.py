@@ -26,6 +26,9 @@ class ExpGenerator(nn.Module):
 
     def forward(self, img_source, img_drive, img_prev, img_next, h_exp=None, noise=None):
         res = {}
+        # img_drive = img_source
+        # img_prev = img_source
+        # img_next = img_source
         enc = self.enc(img_source, img_drive, img_prev, img_next, h_exp=h_exp, noise=noise)
         res.update(enc)
         wa = enc['h_source']

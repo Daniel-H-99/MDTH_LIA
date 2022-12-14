@@ -309,7 +309,7 @@ class ExpEncoder(nn.Module):
 
             # h_motion_drv = h_source
             res['h_source'] = h_source
-            res['h_motion'] = h_motion_drv
+            res['h_motion'] = h_motion_drv 
             res['feats'] = feats
             res['h_exp_src'] = h_exp_src
             res['h_exp_drv'] = h_exp_drv
@@ -395,13 +395,14 @@ class ExpSeqEncoder(nn.Module):
             h_drv = torch.cat([h_prev, h_target, h_next], dim=-1)
 
             h_motion_target = self.fc(h_target)
+            _h_motion_src = self.fc(h_source)
             h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise)
             h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise)
 
             h_motion = [h_motion_target]
 
             res['h_source'] = h_source
-            res['h_motion'] = h_motion_drv
+            res['h_motion'] =  h_motion_drv
             res['feats'] = feats
             res['h_exp_src'] = h_exp_src
             res['h_exp_drv'] = h_exp_drv
