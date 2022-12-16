@@ -375,6 +375,7 @@ class ExpSeqEncoder(nn.Module):
             h_exp =  self.exp_fc(h_app)
         if noise is not None:
             h_exp = h_exp + noise * torch.randn_like(h_exp)
+
         h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
         h_motion = self.exp_decoder(h_exp_id)
         return h_motion, h_exp
