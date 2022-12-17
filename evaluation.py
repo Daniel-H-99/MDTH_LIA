@@ -14,6 +14,7 @@ from PIL import Image
 from skimage.transform import resize
 from skimage import img_as_ubyte, img_as_float32
 import imageio
+import cv2
 
 def data_sampler(dataset, shuffle):
     if shuffle:
@@ -123,6 +124,15 @@ class EvaPipeline(nn.Module):
             source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
         else:
             source_image = get_frame(os.path.join(opt.source_dir, 'image.png'))
+
+        raw_scale_path = os.path.join(opt.source_dir, 'scale.txt')
+        raw_scale = np.loadtxt(raw_scale_path, dtype=np.float32, delimiter=',', comments=None)
+        frame_shape = source_image.shape[2:]
+        if raw_scale[0] > raw_scale[1]:
+            final_shape = (frame_shape[0] * raw_scale[1] / raw_scale[0], frame_shape[0])
+        else:
+            final_shape = (frame_shape[0], frame_shape[0] * raw_scale[0] / raw_scale[1])
+        final_shape = (int(final_shape[0]), int(final_shape[1]))
 
         # if len(source_image.shape) == 2:
         #     source_image = cv2.cvtColor(source_image, cv2.COLOR_GRAY2RGB)
