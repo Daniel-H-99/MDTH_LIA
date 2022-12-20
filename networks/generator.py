@@ -18,9 +18,9 @@ class ExpGenerator(nn.Module):
 
         return img
 
-    def encode(self, img_source, img_drive):
+    def encode(self, img_source, img_drive, img_prev, img_next):
         res = {}
-        enc = self.enc(img_source, img_drive)
+        enc = self.enc(img_source, img_drive, img_prev, img_next)
         res.update(enc)
         return res
 

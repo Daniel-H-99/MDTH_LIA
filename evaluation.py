@@ -162,14 +162,15 @@ class EvaPipeline(nn.Module):
         else:
             source_image = get_frame(os.path.join(opt.source_dir, 'image.png'))
 
-        raw_scale_path = os.path.join(opt.source_dir, 'scale.txt')
-        raw_scale = np.loadtxt(raw_scale_path, dtype=np.float32, delimiter=',', comments=None)
-        frame_shape = source_image.shape[2:]
-        if raw_scale[0] > raw_scale[1]:
-            final_shape = (frame_shape[0] * raw_scale[1] / raw_scale[0], frame_shape[0])
-        else:
-            final_shape = (frame_shape[0], frame_shape[0] * raw_scale[0] / raw_scale[1])
-        final_shape = (int(final_shape[0]), int(final_shape[1]))
+        # raw_scale_path = os.path.join(opt.source_dir, 'scale.txt')
+        # raw_scale = np.loadtxt(raw_scale_path, dtype=np.float32, delimiter=',', comments=None)
+        # frame_shape = source_image.shape[2:]
+        # if raw_scale[0] > raw_scale[1]:
+        #     final_shape = (frame_shape[0] * raw_scale[1] / raw_scale[0], frame_shape[0])
+        # else:
+        #     final_shape = (frame_shape[0], frame_shape[0] * raw_scale[0] / raw_scale[1])
+        # final_shape = (int(final_shape[0]), int(final_shape[1]))
+
         # print(f'raw_scale: {raw_scale}')
         # print(f'frame_shape: {frame_shape}')
         # print(f'final_shape: {final_shape}')
@@ -186,17 +187,21 @@ class EvaPipeline(nn.Module):
         # source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(bs, 1, 1, 1)
         # source = source.to(device)
         source = source_image
-        
+        driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
         # h_exps = []
         # for frame_idx in tqdm(range(0, len(driving_video), bs)):
-        #     driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
-        #     if len(driving_frame) < bs:
-        #         source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
-        #         source = source.to(device)
-        #     h_exp = self.gen.encode(source, driving_frame)['h_exp_drv'].detach().cpu().numpy()
+        #     driving_frame = driving_video_padded[frame_idx:frame_idx+bs+2].to(device)
+        #     # if len(driving_frame) < bs:
+        #     #     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+        #     #     source = source.to(device)
+        #     h_exp_tmp = self.gen.encode(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])
+        #     h_exp = h_exp_tmp['h_exp_drv'].detach().cpu().numpy()
+        #     h_exp_src = h_exp_tmp['h_exp_src'].detach().cpu().numpy()
         #     h_exps.append(h_exp)
 
         # h_exps = np.concatenate(h_exps, axis=0)
+
+        # h_exps_rel = torch.tensor(h_exps - h_exps[0][None] + h_exp_src).float().cuda().clamp(-1, 1)
         # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
         
         predictions = []
@@ -208,6 +213,7 @@ class EvaPipeline(nn.Module):
             #     source = source.to(device)
             # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
             # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
+            # prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:], h_exp=h_exps_rel[[frame_idx]])['img_recon']
             prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])['img_recon']
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
 
@@ -217,7 +223,7 @@ class EvaPipeline(nn.Module):
 
         # print(f'1: vid shape: {vid.shape}')
         meshed_frames = []
-
+        # scaled_frames = []
         for i, frame in enumerate(vid):
             frame = np.ascontiguousarray(img_as_ubyte(frame))
             # if i >= len(target_meshes):
@@ -225,12 +231,13 @@ class EvaPipeline(nn.Module):
             # mesh = target_meshes[i]
             # frame = draw_section(mesh[:, :2].numpy().astype(np.int32), frame_shape, section_config=[OPENFACE_LEFT_EYEBROW_IDX, OPENFACE_RIGHT_EYEBROW_IDX, OPENFACE_NOSE_IDX, OPENFACE_LEFT_EYE_IDX, OPENFACE_RIGHT_EYE_IDX, OPENFACE_OUT_LIP_IDX, OPENFACE_IN_LIP_IDX] , mask=frame)
             meshed_frames.append(frame)
-            # meshed_frames.append(cv2.resize(frame, final_shape))
+            # scaled_frames.append(cv2.resize(frame, final_shape))
 
         vid = meshed_frames
         # print(f'2: vid shape: {vid.shape}')
 
         imageio.mimsave(os.path.join(opt.result_dir, opt.result_video), vid, fps=25)
+        # imageio.mimsave(os.path.join(opt.result_dir, 'scaled.mp4'), scaled_frames, fps=25)
         
         if save_frames:
             for i, frame in enumerate(vid):
