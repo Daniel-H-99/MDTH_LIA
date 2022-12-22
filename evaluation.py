@@ -125,14 +125,14 @@ class EvaPipeline(nn.Module):
         else:
             source_image = get_frame(os.path.join(opt.source_dir, 'image.png'))
 
-        raw_scale_path = os.path.join(opt.source_dir, 'scale.txt')
-        raw_scale = np.loadtxt(raw_scale_path, dtype=np.float32, delimiter=',', comments=None)
-        frame_shape = source_image.shape[2:]
-        if raw_scale[0] > raw_scale[1]:
-            final_shape = (frame_shape[0] * raw_scale[1] / raw_scale[0], frame_shape[0])
-        else:
-            final_shape = (frame_shape[0], frame_shape[0] * raw_scale[0] / raw_scale[1])
-        final_shape = (int(final_shape[0]), int(final_shape[1]))
+        # raw_scale_path = os.path.join(opt.source_dir, 'scale.txt')
+        # raw_scale = np.loadtxt(raw_scale_path, dtype=np.float32, delimiter=',', comments=None)
+        # frame_shape = source_image.shape[2:]
+        # if raw_scale[0] > raw_scale[1]:
+        #     final_shape = (frame_shape[0] * raw_scale[1] / raw_scale[0], frame_shape[0])
+        # else:
+        #     final_shape = (frame_shape[0], frame_shape[0] * raw_scale[0] / raw_scale[1])
+        # final_shape = (int(final_shape[0]), int(final_shape[1]))
 
         # if len(source_image.shape) == 2:
         #     source_image = cv2.cvtColor(source_image, cv2.COLOR_GRAY2RGB)
@@ -161,7 +161,7 @@ class EvaPipeline(nn.Module):
 
         # print(f'1: vid shape: {vid.shape}')
         meshed_frames = []
-        scaled_frames = []
+        # scaled_frames = []
         for i, frame in enumerate(vid):
             frame = np.ascontiguousarray(img_as_ubyte(frame))
             # if i >= len(target_meshes):
@@ -169,13 +169,13 @@ class EvaPipeline(nn.Module):
             # mesh = target_meshes[i]
             # frame = draw_section(mesh[:, :2].numpy().astype(np.int32), frame_shape, section_config=[OPENFACE_LEFT_EYEBROW_IDX, OPENFACE_RIGHT_EYEBROW_IDX, OPENFACE_NOSE_IDX, OPENFACE_LEFT_EYE_IDX, OPENFACE_RIGHT_EYE_IDX, OPENFACE_OUT_LIP_IDX, OPENFACE_IN_LIP_IDX] , mask=frame)
             meshed_frames.append(frame)
-            scaled_frames.append(cv2.resize(frame, final_shape))
+            # scaled_frames.append(cv2.resize(frame, final_shape))
 
         vid = meshed_frames
         # print(f'2: vid shape: {vid.shape}')
 
         imageio.mimsave(os.path.join(opt.result_dir, opt.result_video), vid, fps=25)
-        imageio.mimsave(os.path.join(opt.result_dir, 'scaled.mp4'), scaled_frames, fps=25)
+        # imageio.mimsave(os.path.join(opt.result_dir, 'scaled.mp4'), scaled_frames, fps=25)
         
         if save_frames:
             for i, frame in enumerate(vid):
