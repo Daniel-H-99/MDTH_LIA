@@ -327,6 +327,11 @@ class ExpSeqEncoder(nn.Module):
     def __init__(self, size, dim=512, dim_motion=20, exp_dim=20):
         super(ExpSeqEncoder, self).__init__()
 
+        self.exp_dim = exp_dim
+        self.dim_motion = dim_motion
+        self.size = size
+        self.dim = dim
+
         # appearance netmork
         self.net_app = EncoderApp(size, dim)
 
@@ -368,7 +373,7 @@ class ExpSeqEncoder(nn.Module):
 
         return h_motion
 
-    def enc_motion_by_exp(self, h_app, h_app_id=None, h_exp=None, noise=None):
+    def enc_motion_by_exp(self, h_app, h_app_id=None, h_exp=None, noise=None, mask=None):
         if h_app_id is None:
             h_app_id = h_app
         if h_exp is None:
@@ -376,12 +381,16 @@ class ExpSeqEncoder(nn.Module):
         if noise is not None:
             h_exp = h_exp + noise * torch.randn_like(h_exp)
 
+        if mask is not None:
+            assert h_exp.shape == mask.shape
+            h_exp = h_exp * mask
+
         h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
         h_motion = self.exp_decoder(h_exp_id)
         return h_motion, h_exp
 
 
-    def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, noise=None):
+    def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, noise=None, dropout=0):
 
         res = {}
         if input_target is not None:
@@ -397,8 +406,12 @@ class ExpSeqEncoder(nn.Module):
 
             h_motion_target = self.fc(h_target)
             _h_motion_src = self.fc(h_source)
-            h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise)
-            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise)
+
+            mask = torch.rand(len(h_motion_target), self.exp_dim) >= dropout
+            mask = mask.to(h_motion_target.device)
+
+            h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise, mask=mask)
+            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise, mask=mask)
 
             h_motion = [h_motion_target]
 

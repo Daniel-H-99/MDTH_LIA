@@ -24,12 +24,12 @@ class ExpGenerator(nn.Module):
         res.update(enc)
         return res
 
-    def forward(self, img_source, img_drive, img_prev, img_next, h_exp=None, noise=None):
+    def forward(self, img_source, img_drive, img_prev, img_next, h_exp=None, noise=None, dropout=0):
         res = {}
         # img_drive = img_source
         # img_prev = img_source
         # img_next = img_source
-        enc = self.enc(img_source, img_drive, img_prev, img_next, h_exp=h_exp, noise=noise)
+        enc = self.enc(img_source, img_drive, img_prev, img_next, h_exp=h_exp, noise=noise, dropout=dropout)
         res.update(enc)
         wa = enc['h_source']
         alpha = enc['h_motion']

@@ -1,0 +1,2 @@
+CUDA_VISIBLE_DEVICES=0,1 python train.py --resume_ckpt /mnt/hdd/minyeong_workspace/checkpoints/lia/000000.pt --exp_name exp_20_0.2 --dropout 0.2 --exp_dim 20
+CUDA_VISIBLE_DEVICES=0,1 python train.py --resume_ckpt /mnt/hdd/minyeong_workspace/checkpoints/lia/000000.pt --exp_name exp_30_0.2 --dropout 0.2 --exp_dim 30

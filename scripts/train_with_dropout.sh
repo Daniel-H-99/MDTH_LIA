@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0,1 python train.py --resume_ckpt /mnt/hdd/minyeong_workspace/checkpoints/lia/000000.pt --exp_name dropout_0.4 --dropout 0.4

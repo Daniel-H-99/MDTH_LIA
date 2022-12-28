@@ -120,7 +120,7 @@ def main(rank, world_size, args):
 
     print('==> training')
     pbar = range(args.iter)
-    MAX_ITER = 9000
+    # MAX_ITER = 9000
     for idx in pbar:
         i = idx + args.start_iter
 
@@ -131,7 +131,9 @@ def main(rank, world_size, args):
         img_prev = img_prev.to(rank, non_blocking=True)
         img_next = img_next.to(rank, non_blocking=True)
         # update generator
-        vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=0.2 * cos_aneal(i, MAX_ITER))
+        # noise = 0.2 * cos_aneal(i, MAX_ITER)
+        noise = 0
+        vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=noise)
 
         # update discriminator
         gan_d_loss = trainer.dis_update(img_target, img_recon)
@@ -169,7 +171,7 @@ def main(rank, world_size, args):
 if __name__ == "__main__":
     # training params
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iter", type=int, default=800000)
+    parser.add_argument("--iter", type=int, default=8000)
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--d_reg_every", type=int, default=16)
@@ -186,8 +188,9 @@ if __name__ == "__main__":
     parser.add_argument("--exp_path", type=str, default='/mnt/hdd/minyeong_workspace/checkpoints/MDTH_LIA/')
     parser.add_argument("--exp_name", type=str, default='v1')
     parser.add_argument("--addr", type=str, default='localhost')
-    parser.add_argument("--port", type=str, default='12345')
+    parser.add_argument("--port", type=str, default='23456')
     parser.add_argument("--exp_dim", type=int, default=40)
+    parser.add_argument("--dropout", type=float, default=0)
     opts = parser.parse_args()
 
     n_gpus = torch.cuda.device_count()

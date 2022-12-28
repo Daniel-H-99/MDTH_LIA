@@ -49,6 +49,7 @@ class Trainer(nn.Module):
         )
 
         self.criterion_vgg = VGGLoss().to(rank)
+        self.dropout = self.args.dropout
 
     def g_nonsaturating_loss(self, fake_pred):
         return F.softplus(-fake_pred).mean()
@@ -88,8 +89,8 @@ class Trainer(nn.Module):
 
         # img_target_recon = self.gen(img_source, img_target)
         # img_recon_pred = self.dis(img_target_recon)
-        print(f'noise: {noise}')
-        gen_res = self.gen(img_source, img_target, img_prev, img_next, noise=noise)
+        # print(f'noise: {noise}')
+        gen_res = self.gen(img_source, img_target, img_prev, img_next, noise=noise, dropout=self.dropout)
         img_target_recon = gen_res['img_recon']
         img_recon_pred = self.dis(img_target_recon)
 
