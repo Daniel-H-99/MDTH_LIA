@@ -127,7 +127,7 @@ class EvaPipeline(nn.Module):
 
         # self.loss_fn = lpips.LPIPS(net='alex').cuda()
 
-    def inference(self, opt, save_frames):
+    def inference(self, opt, save_frames, driving_exps=None, driving_exps_mask=None):
         device = 'cuda:0'
         bs = 1
         transform = torchvision.transforms.Compose([
@@ -142,20 +142,21 @@ class EvaPipeline(nn.Module):
             x = x[None].to(device)
             return x
 
-        if 'frames' in os.listdir(opt.driving_dir):
-            driving_frames_path = os.listdir(os.path.join(opt.driving_dir, 'frames'))
-            driving_video = []
-            fids = []
-            for frame_path in driving_frames_path:
-                driving_frame = get_frame(os.path.join(opt.driving_dir, 'frames', frame_path))
-                driving_video.append(driving_frame)
-                fid = int(frame_path.split('.png')[0])
-                fids.append(fid)
-            order = torch.tensor(fids).argsort()
-            driving_video = torch.cat(driving_video, dim=0)[order]
-        else:
-            driving_image = get_frame(os.path.join(opt.driving_dir, 'image.png'))
-            driving_video = driving_image
+        if driving_exps is None:
+            if 'frames' in os.listdir(opt.driving_dir):
+                driving_frames_path = os.listdir(os.path.join(opt.driving_dir, 'frames'))
+                driving_video = []
+                fids = []
+                for frame_path in driving_frames_path:
+                    driving_frame = get_frame(os.path.join(opt.driving_dir, 'frames', frame_path))
+                    driving_video.append(driving_frame)
+                    fid = int(frame_path.split('.png')[0])
+                    fids.append(fid)
+                order = torch.tensor(fids).argsort()
+                driving_video = torch.cat(driving_video, dim=0)[order]
+            else:
+                driving_image = get_frame(os.path.join(opt.driving_dir, 'image.png'))
+                driving_video = driving_image
 
         if opt.source_dir.endswith('.mp4'):
             source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
@@ -186,8 +187,10 @@ class EvaPipeline(nn.Module):
         # source_image = resize(img_as_float32(source_image), frame_shape[:2])[..., :3]
         # source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(bs, 1, 1, 1)
         # source = source.to(device)
-        source = source_image
-        driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
+
+        # source = source_image
+        # driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
+        
         # h_exps = []
         # for frame_idx in tqdm(range(0, len(driving_video), bs)):
         #     driving_frame = driving_video_padded[frame_idx:frame_idx+bs+2].to(device)
@@ -205,18 +208,35 @@ class EvaPipeline(nn.Module):
         # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
         
         predictions = []
-        driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
-        for frame_idx in tqdm(range(0, len(driving_video), bs)):
-            driving_frame = driving_video_padded[frame_idx:frame_idx+bs+2].to(device)
-            # if len(driving_frame) < bs + 1:
-            #     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
-            #     source = source.to(device)
-            # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
-            # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
-            # prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:], h_exp=h_exps_rel[[frame_idx]])['img_recon']
-            prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])['img_recon']
-            predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
+        source = source_image
+        preds_h_exp = []
 
+        if driving_exps is None:
+            driving_video_padded = torch.cat([driving_video[[0]], driving_video, driving_video[[-1]]], dim=0)
+        else:
+            driving_video = torch.tensor(driving_exps).to(source.device)
+            if driving_exps_mask is not None:
+                h_exp_mask = torch.tensor(driving_exps_mask).to(source.device)
+
+        for frame_idx in tqdm(range(0, len(driving_video), bs)):
+            if driving_exps is None:
+                driving_frame = driving_video_padded[frame_idx:frame_idx+bs+2].to(device)
+                # if len(driving_frame) < bs + 1:
+                #     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+                #     source = source.to(device)
+                # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
+                # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
+                # prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:], h_exp=h_exps_rel[[frame_idx]])['img_recon']
+                pred = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])
+                prediction = pred['img_recon']
+                pred_h_exp = pred['h_exp_drv']
+
+            else:
+                pred = self.gen(source, None, None, None, h_exp=driving_video[frame_idx:frame_idx + bs], h_exp_mask=h_exp_mask[frame_idx:frame_idx + bs])
+                prediction = pred['img_recon']
+                pred_h_exp = pred['h_exp_drv']
+            predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
+            preds_h_exp.append(pred_h_exp.data.cpu().numpy())
 
         vid = np.concatenate(predictions, axis=0).clip(-1, 1)
         vid = (vid - vid.min()) / (vid.max() - vid.min())
@@ -243,6 +263,9 @@ class EvaPipeline(nn.Module):
             for i, frame in enumerate(vid):
                 imageio.imwrite(os.path.join(opt.result_dir, 'frames', '{:05d}.png'.format(i)), frame)
                 
+        preds_h_exp = np.concatenate(preds_h_exp, axis=0)
+        np.savetxt(os.path.join(opt.result_dir, 'h_exps.csv'), preds_h_exp, delimiter=',')
+        
         return predictions
                 
     def run(self):

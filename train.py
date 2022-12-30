@@ -171,7 +171,7 @@ def main(rank, world_size, args):
 if __name__ == "__main__":
     # training params
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iter", type=int, default=8000)
+    parser.add_argument("--iter", type=int, default=16000)
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--d_reg_every", type=int, default=16)

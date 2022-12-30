@@ -390,30 +390,42 @@ class ExpSeqEncoder(nn.Module):
         return h_motion, h_exp
 
 
-    def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, noise=None, dropout=0):
+    def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, h_exp_mask=None, noise=None, dropout=0):
 
         res = {}
-        if input_target is not None:
+        if input_target is not None or h_exp is not None:
 
             h_source, feats = self.net_app(input_source)
-            h_target, _ = self.net_app(input_target)
-            h_prev, _ = self.net_app(input_prev)
-            h_next, _ = self.net_app(input_next)
-
             h_src = torch.cat([h_source, h_source, h_source], dim=-1)
-
-            h_drv = torch.cat([h_prev, h_target, h_next], dim=-1)
-
-            h_motion_target = self.fc(h_target)
             _h_motion_src = self.fc(h_source)
 
-            mask = torch.rand(len(h_motion_target), self.exp_dim) >= dropout
-            mask = mask.to(h_motion_target.device)
+            if input_target is not None:
+                h_target, _ = self.net_app(input_target)
+                h_prev, _ = self.net_app(input_prev)
+                h_next, _ = self.net_app(input_next)
+
+                h_drv = torch.cat([h_prev, h_target, h_next], dim=-1)
+
+                h_motion_target = self.fc(h_target)
+
+                mask = torch.rand(len(h_motion_target), self.exp_dim) >= dropout
+                mask = mask.to(h_motion_target.device)
+
+            else:
+                assert h_exp is not None
+                h_drv = None
+                mask = None
+                h_motion_target = None
 
             h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise, mask=mask)
+
+            if h_exp is not None and h_exp_mask is not None:
+                h_exp = h_exp_mask * h_exp + (1 - h_exp_mask) * h_exp_src
+
             h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise, mask=mask)
 
             h_motion = [h_motion_target]
+
 
             res['h_source'] = h_source
             res['h_motion'] =  h_motion_drv

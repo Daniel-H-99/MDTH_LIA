@@ -61,7 +61,8 @@ class Trainer(nn.Module):
         return real_loss.mean() + fake_loss.mean()
 
     def uniform_loss(self, gen):
-        loss_weight = 50
+        # loss_weight = 50
+        loss_weight = 0
         unif_loss = lambda x: -torch.log((1 + x).clamp(min=1e-6)).mean()
         src_exp_code = gen['h_exp_src'] # B x motion_dim
         drv_exp_code = gen['h_exp_drv'] # B x motion_dim
