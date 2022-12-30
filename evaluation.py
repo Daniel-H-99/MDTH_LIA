@@ -50,6 +50,34 @@ def data_preprocessing(img_path, size):
 
     return imgs_norm
 
+def find_best_frame(source, driving, cpu):
+    import face_alignment
+
+    def normalize_kp(kp):
+        kp = kp - kp.mean(axis=0, keepdims=True)
+        area = ConvexHull(kp[:, :2]).volume
+        area = np.sqrt(area)
+        kp[:, :2] = kp[:, :2] / area
+        return kp
+
+    fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, flip_input=True,
+                                      device= 'cpu' if cpu else 'cuda')
+    kp_source = fa.get_landmarks(255 * source)[0]
+    kp_source = normalize_kp(kp_source)
+    norm  = float('inf')
+    frame_num = 0
+    for i, image in tqdm(enumerate(driving)):
+        try:
+            kp_driving = fa.get_landmarks(255 * image)[0]
+            kp_driving = normalize_kp(kp_driving)
+            new_norm = (np.abs(kp_source - kp_driving) ** 2).sum()
+            if new_norm < norm:
+                norm = new_norm
+                frame_num = i
+        except:
+            pass
+    return frame_num
+
 class EvaPipeline(nn.Module):
     def __init__(self, args):
         super(EvaPipeline, self).__init__()
@@ -147,14 +175,31 @@ class EvaPipeline(nn.Module):
         source = source_image
         
         predictions = []
-        for frame_idx in tqdm(range(0, len(driving_video), bs)):
-            driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
-            if len(driving_frame) < bs:
-                source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
-                source = source.to(device)
-            
-            prediction = self.gen(source, driving_frame)
-            predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
+
+        if opt.relative_movement:
+            source_cpu = source.detach().cpu()[0].permute(1, 2, 0).clamp(0, 1).numpy()
+            driving_cpu = driving_video.detach().cpu().permute(0, 2, 3, 1).clamp(0, 1).numpy()
+            i = find_best_frame(source_cpu, driving_cpu, False)
+            print ("Best frame: " + str(i))
+            h_start = self.gen.enc.enc_motion(driving_video[:, i, :, :, :])
+
+            for frame_idx in tqdm(range(0, len(driving_video), bs)):
+                driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
+                if len(driving_frame) < bs:
+                    source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+                    source = source.to(device)
+                
+                prediction = self.gen(source, driving_frame)
+                predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
+        else:
+            for frame_idx in tqdm(range(0, len(driving_video), bs)):
+                driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
+                if len(driving_frame) < bs:
+                    source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
+                    source = source.to(device)
+                
+                prediction = self.gen(source, driving_frame)
+                predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
 
         vid = np.concatenate(predictions, axis=0).clip(-1, 1)
         vid = (vid - vid.min()) / (vid.max() - vid.min())
