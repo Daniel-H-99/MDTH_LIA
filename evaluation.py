@@ -181,12 +181,13 @@ class EvaPipeline(nn.Module):
         
         predictions = []
 
-        relative_movement = False
+        relative_movement = True
 
         if relative_movement:
             source_cpu = source.detach().cpu()[0].permute(1, 2, 0).clamp(0, 1).numpy()
             driving_cpu = driving_video.detach().cpu().permute(0, 2, 3, 1).clamp(0, 1).numpy()
-            i = find_best_frame(source_cpu, driving_cpu, False)
+            # i = find_best_frame(source_cpu, driving_cpu, False)
+            i = 0
             print ("Best frame: " + str(i))
             h_start = self.gen.enc.enc_motion(driving_video[[i], :, :, :])
 
