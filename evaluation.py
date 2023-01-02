@@ -15,6 +15,8 @@ from skimage.transform import resize
 from skimage import img_as_ubyte, img_as_float32
 import imageio
 import cv2
+from scipy.spatial import ConvexHull
+
 
 def data_sampler(dataset, shuffle):
     if shuffle:
@@ -120,7 +122,7 @@ class EvaPipeline(nn.Module):
 
         # self.loss_fn = lpips.LPIPS(net='alex').cuda()
 
-    def inference(self, opt, save_frames):
+    def inference(self, opt, save_frames, driving_exps=None, driving_exps_mask=None):
         device = 'cuda:0'
         bs = 1
         transform = torchvision.transforms.Compose([
@@ -149,7 +151,10 @@ class EvaPipeline(nn.Module):
         driving_video = torch.cat(driving_video, dim=0)[order]
         
         if opt.source_dir.endswith('.mp4'):
-            source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
+            source_frames = sorted(os.listdir(os.path.join(opt.source_dir, 'frames')))
+            random_idx = len(source_frames) // 2
+            source_image = get_frame(os.path.join(opt.source_dir, 'frames', source_frames[random_idx]))
+            # source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
         else:
             source_image = get_frame(os.path.join(opt.source_dir, 'image.png'))
 
@@ -176,12 +181,14 @@ class EvaPipeline(nn.Module):
         
         predictions = []
 
-        if opt.relative_movement:
+        relative_movement = False
+
+        if relative_movement:
             source_cpu = source.detach().cpu()[0].permute(1, 2, 0).clamp(0, 1).numpy()
             driving_cpu = driving_video.detach().cpu().permute(0, 2, 3, 1).clamp(0, 1).numpy()
             i = find_best_frame(source_cpu, driving_cpu, False)
             print ("Best frame: " + str(i))
-            h_start = self.gen.enc.enc_motion(driving_video[:, i, :, :, :])
+            h_start = self.gen.enc.enc_motion(driving_video[[i], :, :, :])
 
             for frame_idx in tqdm(range(0, len(driving_video), bs)):
                 driving_frame = driving_video[frame_idx:frame_idx+bs].to(device)
@@ -189,7 +196,7 @@ class EvaPipeline(nn.Module):
                     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
                     source = source.to(device)
                 
-                prediction = self.gen(source, driving_frame)
+                prediction = self.gen(source, driving_frame, h_start)
                 predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
         else:
             for frame_idx in tqdm(range(0, len(driving_video), bs)):
