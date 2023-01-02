@@ -159,7 +159,10 @@ class EvaPipeline(nn.Module):
                 driving_video = driving_image
 
         if opt.source_dir.endswith('.mp4'):
-            source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
+            source_frames = sorted(os.listdir(os.path.join(opt.source_dir, 'frames')))
+            random_idx = len(source_frames) // 2
+            source_image = get_frame(os.path.join(opt.source_dir, 'frames', source_frames[random_idx]))
+            # source_image = get_frame(os.path.join(opt.source_dir, 'frames', '0000000.png'))
         else:
             source_image = get_frame(os.path.join(opt.source_dir, 'image.png'))
 
