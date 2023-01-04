@@ -208,7 +208,8 @@ class EvaPipeline(nn.Module):
         # h_exps = np.concatenate(h_exps, axis=0)
 
         # h_exps_rel = torch.tensor(h_exps - h_exps[0][None] + h_exp_src).float().cuda().clamp(-1, 1)
-        # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
+        # # filtered_h_exps = torch.tensor(filter_matrix(h_exps)).float()
+        # filtered_h_exps = h_exps_rel
         
         predictions = []
         source = source_image
@@ -228,16 +229,17 @@ class EvaPipeline(nn.Module):
                 #     source = torch.tensor(source_image[np.newaxis].astype(np.float32)).permute(0, 3, 1, 2).repeat(len(kp_driving['value']), 1, 1, 1)
                 #     source = source.to(device)
                 # prediction = self.gen(source, driving_frame, h_motion=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
-                # prediction = self.gen(source, driving_frame, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))['img_recon']
+                # pred = self.gen(source, None, None, None, h_exp=filtered_h_exps[frame_idx:frame_idx+bs].to(device))
                 # prediction = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:], h_exp=h_exps_rel[[frame_idx]])['img_recon']
                 pred = self.gen(source, driving_frame[1:-1], driving_frame[0:-2], driving_frame[2:])
                 prediction = pred['img_recon']
                 pred_h_exp = pred['h_exp_drv']
-
             else:
                 pred = self.gen(source, None, None, None, h_exp=driving_video[frame_idx:frame_idx + bs], h_exp_mask=h_exp_mask[frame_idx:frame_idx + bs])
                 prediction = pred['img_recon']
                 pred_h_exp = pred['h_exp_drv']
+            
+            # prediction = driving_frame
             predictions.append(np.transpose(prediction.data.cpu().numpy(), [0, 2, 3, 1]))
             preds_h_exp.append(pred_h_exp.data.cpu().numpy())
 

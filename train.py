@@ -120,7 +120,7 @@ def main(rank, world_size, args):
 
     print('==> training')
     pbar = range(args.iter)
-    # MAX_ITER = 9000
+    MAX_ITER = 9000
     for idx in pbar:
         i = idx + args.start_iter
 
@@ -131,8 +131,8 @@ def main(rank, world_size, args):
         img_prev = img_prev.to(rank, non_blocking=True)
         img_next = img_next.to(rank, non_blocking=True)
         # update generator
-        # noise = 0.2 * cos_aneal(i, MAX_ITER)
-        noise = 0
+        noise = 0.2 * cos_aneal(i, MAX_ITER)
+        # noise = 0
         vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=noise)
 
         # update discriminator
