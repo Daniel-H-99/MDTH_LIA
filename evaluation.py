@@ -181,7 +181,7 @@ class EvaPipeline(nn.Module):
         
         predictions = []
 
-        relative_movement = True
+        relative_movement = False
 
         if relative_movement:
             source_cpu = source.detach().cpu()[0].permute(1, 2, 0).clamp(0, 1).numpy()
