@@ -131,8 +131,8 @@ def main(rank, world_size, args):
         img_prev = img_prev.to(rank, non_blocking=True)
         img_next = img_next.to(rank, non_blocking=True)
         # update generator
-        noise = 0.2 * cos_aneal(i, MAX_ITER)
-        # noise = 0
+        # noise = 0.2 * cos_aneal(idx, MAX_ITER)
+        noise = 0.2
         vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=noise)
 
         # update discriminator
@@ -171,7 +171,7 @@ def main(rank, world_size, args):
 if __name__ == "__main__":
     # training params
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iter", type=int, default=16000)
+    parser.add_argument("--iter", type=int, default=30001)
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--d_reg_every", type=int, default=16)
@@ -180,8 +180,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.002)
     parser.add_argument("--channel_multiplier", type=int, default=1)
     parser.add_argument("--start_iter", type=int, default=0)
-    parser.add_argument("--display_freq", type=int, default=1000)
-    parser.add_argument("--save_freq", type=int, default=1000)
+    parser.add_argument("--display_freq", type=int, default=3000)
+    parser.add_argument("--save_freq", type=int, default=3000)
     parser.add_argument("--latent_dim_style", type=int, default=512)
     parser.add_argument("--latent_dim_motion", type=int, default=20)
     parser.add_argument("--dataset", type=str, default='vox')

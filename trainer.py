@@ -50,7 +50,9 @@ class Trainer(nn.Module):
 
         self.criterion_vgg = VGGLoss().to(rank)
         self.dropout = self.args.dropout
+        
 
+        
     def g_nonsaturating_loss(self, fake_pred):
         return F.softplus(-fake_pred).mean()
 
@@ -61,8 +63,8 @@ class Trainer(nn.Module):
         return real_loss.mean() + fake_loss.mean()
 
     def uniform_loss(self, gen):
-        # loss_weight = 50
-        loss_weight = 0
+        loss_weight = 50
+        # loss_weight = 0
         unif_loss = lambda x: -torch.log((1 + x).clamp(min=1e-6)).mean()
         src_exp_code = gen['h_exp_src'] # B x motion_dim
         drv_exp_code = gen['h_exp_drv'] # B x motion_dim
@@ -158,6 +160,9 @@ class Trainer(nn.Module):
         # self.load_ckpt(self.g_optim, ckpt, "g_optim")
         # self.load_ckpt(self.d_optim., ckpt, "d_optim")
 
+        requires_grad(self.gen, False)
+        requires_grad(self.dis, False)
+        
         return start_iter
 
     def save(self, idx, checkpoint_path):
