@@ -322,7 +322,23 @@ class ExpEncoder(nn.Module):
             res['h_motion'] = None
             res['feats'] = feats
             return res
-
+        
+class ResCondSequential(nn.Module):
+    def __init__(self, modules):
+        super(ResCondSequential, self).__init__()
+        self.layers = nn.ModuleList(modules)
+    
+    def forward(self, x, cond):
+        tmp = x
+        for i, module in enumerate(self.layers):
+            if i + 1 == len(self.layers):
+                break
+            residual = module(tmp)
+            tmp = residual
+        out = self.layers[-1](tmp + cond)
+        
+        return out
+        
 class ExpSeqEncoder(nn.Module):
     def __init__(self, size, dim=512, dim_motion=20, exp_dim=20):
         super(ExpSeqEncoder, self).__init__()
@@ -350,15 +366,17 @@ class ExpSeqEncoder(nn.Module):
 
         exp_fc.append(EqualLinear(dim, exp_dim))
         exp_fc.append(nn.Tanh())
+        # self.exp_fc = ResSequential(exp_fc)
         self.exp_fc = nn.Sequential(*exp_fc)
-
+        
         # motion decoder
         exp_decoder = [EqualLinear(dim + exp_dim, dim)]
         for i in range(3):
             exp_decoder.append(EqualLinear(dim, dim))
 
         exp_decoder.append(EqualLinear(dim, dim_motion))
-        self.exp_decoder = nn.Sequential(*exp_decoder)
+        self.exp_decoder = ResCondSequential(exp_decoder)
+        # self.exp_decoder = nn.Sequential(*exp_decoder)
 
     def enc_app(self, x):
 
@@ -386,7 +404,8 @@ class ExpSeqEncoder(nn.Module):
             h_exp = h_exp * mask
 
         h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
-        h_motion = self.exp_decoder(h_exp_id)
+        # h_motion = self.exp_decoder(h_exp_id)
+        h_motion = self.exp_decoder(h_exp_id, h_app_id)
         return h_motion, h_exp
 
 

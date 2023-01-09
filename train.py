@@ -132,7 +132,7 @@ def main(rank, world_size, args):
         img_next = img_next.to(rank, non_blocking=True)
         # update generator
         # noise = 0.2 * cos_aneal(idx, MAX_ITER)
-        noise = 0.2
+        noise = 0.1
         vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=noise)
 
         # update discriminator
