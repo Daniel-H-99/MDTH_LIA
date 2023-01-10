@@ -41,8 +41,8 @@ def display_img(idx, img, name, writer):
 def write_loss(i, vgg_loss, l1_loss, g_loss, d_loss, u_loss, k_loss, writer):
     writer.add_scalar('vgg_loss', vgg_loss.item(), i)
     writer.add_scalar('l1_loss', l1_loss.item(), i)
-    writer.add_scalar('gen_loss', g_loss.item(), i)
-    writer.add_scalar('dis_loss', d_loss.item(), i)
+    # writer.add_scalar('gen_loss', g_loss.item(), i)
+    # writer.add_scalar('dis_loss', d_loss.item(), i)
     writer.add_scalar('unif_loss', u_loss.item(), i)
     writer.add_scalar('kd_loss', k_loss.item(), i)
     writer.flush()
@@ -132,11 +132,12 @@ def main(rank, world_size, args):
         img_next = img_next.to(rank, non_blocking=True)
         # update generator
         # noise = 0.2 * cos_aneal(idx, MAX_ITER)
-        noise = 0.2
+        noise = 0.1
         vgg_loss, l1_loss, gan_g_loss, img_recon, unif_loss, kd_loss = trainer.gen_update(img_source, img_target, img_prev, img_next, noise=noise)
 
         # update discriminator
-        gan_d_loss = trainer.dis_update(img_target, img_recon)
+        # gan_d_loss = trainer.dis_update(img_target, img_recon)
+        gan_d_loss = 0
 
         if rank == 0:
             # write to log
@@ -144,8 +145,8 @@ def main(rank, world_size, args):
 
         # display
         if i % args.display_freq == 0 and rank == 0:
-            print("[Iter %d/%d] [vgg loss: %f] [l1 loss: %f] [g loss: %f] [d loss: %f]"
-                  % (i, args.iter, vgg_loss.item(), l1_loss.item(), gan_g_loss.item(), gan_d_loss.item()))
+            print("[Iter %d/%d] [vgg loss: %f] [l1 loss: %f]"
+                  % (i, args.iter, vgg_loss.item(), l1_loss.item()))
 
             if rank == 0:
                 img_test_source, img_test_target, img_test_prev, img_test_next = next(loader_test)
@@ -171,7 +172,7 @@ def main(rank, world_size, args):
 if __name__ == "__main__":
     # training params
     parser = argparse.ArgumentParser()
-    parser.add_argument("--iter", type=int, default=30001)
+    parser.add_argument("--iter", type=int, default=30000)
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--d_reg_every", type=int, default=16)
@@ -180,8 +181,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.002)
     parser.add_argument("--channel_multiplier", type=int, default=1)
     parser.add_argument("--start_iter", type=int, default=0)
-    parser.add_argument("--display_freq", type=int, default=3000)
-    parser.add_argument("--save_freq", type=int, default=3000)
+    parser.add_argument("--display_freq", type=int, default=2500)
+    parser.add_argument("--save_freq", type=int, default=2500)
     parser.add_argument("--latent_dim_style", type=int, default=512)
     parser.add_argument("--latent_dim_motion", type=int, default=20)
     parser.add_argument("--dataset", type=str, default='vox')

@@ -379,15 +379,18 @@ class ExpSeqEncoder(nn.Module):
         if h_exp is None:
             h_exp =  self.exp_fc(h_app)
         if noise is not None:
-            h_exp = h_exp + noise * torch.randn_like(h_exp)
+            h_exp_noise = h_exp + (noise * torch.randn_like(h_exp)).clamp(-1 - h_exp, 1 - h_exp)
+        else:
+            h_exp_noise = h_exp
 
         if mask is not None:
+            assert False
             assert h_exp.shape == mask.shape
             h_exp = h_exp * mask
 
-        h_exp_id = torch.cat([h_app_id, h_exp], dim=1)
+        h_exp_id = torch.cat([h_app_id, h_exp_noise], dim=1)
         h_motion = self.exp_decoder(h_exp_id)
-        return h_motion, h_exp
+        return h_motion, h_exp_noise, h_exp
 
 
     def forward(self, input_source, input_target, input_prev, input_next, h_exp=None, h_exp_mask=None, noise=None, dropout=0):
@@ -417,12 +420,13 @@ class ExpSeqEncoder(nn.Module):
                 mask = None
                 h_motion_target = None
 
-            h_motion_src, h_exp_src = self.enc_motion_by_exp(h_src, h_source, noise=noise, mask=mask)
+            mask = None
+            h_motion_src, h_exp_src, h_exp_src_raw = self.enc_motion_by_exp(h_src, h_source, noise=noise, mask=mask)
 
             if h_exp is not None and h_exp_mask is not None:
                 h_exp = h_exp_mask * h_exp + (1 - h_exp_mask) * h_exp_src
 
-            h_motion_drv, h_exp_drv = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise, mask=mask)
+            h_motion_drv, h_exp_drv, h_exp_drv_raw = self.enc_motion_by_exp(h_drv, h_source, h_exp=h_exp, noise=noise, mask=mask)
 
             h_motion = [h_motion_target]
 
@@ -432,6 +436,8 @@ class ExpSeqEncoder(nn.Module):
             res['feats'] = feats
             res['h_exp_src'] = h_exp_src
             res['h_exp_drv'] = h_exp_drv
+            res['h_exp_drv_raw'] = h_exp_drv_raw
+            res['h_exp_src_raw'] = h_exp_src_raw
             res['h_motion_tf'] = h_motion_target
 
             return res

@@ -66,8 +66,8 @@ class Trainer(nn.Module):
         loss_weight = 50
         # loss_weight = 0
         unif_loss = lambda x: -torch.log((1 + x).clamp(min=1e-6)).mean()
-        src_exp_code = gen['h_exp_src'] # B x motion_dim
-        drv_exp_code = gen['h_exp_drv'] # B x motion_dim
+        src_exp_code = gen['h_exp_src_raw'] # B x motion_dim
+        drv_exp_code = gen['h_exp_drv_raw'] # B x motion_dim
         greater_mask = (src_exp_code >= drv_exp_code).detach() 
         less_mask = ~greater_mask
         greater_labels = torch.cat([src_exp_code[greater_mask], drv_exp_code[less_mask]], dim=0)
@@ -99,7 +99,7 @@ class Trainer(nn.Module):
 
         vgg_loss = self.criterion_vgg(img_target_recon, img_target).mean()
         l1_loss = F.l1_loss(img_target_recon, img_target)
-        gan_g_loss = self.g_nonsaturating_loss(img_recon_pred)
+        gan_g_loss = 0 * self.g_nonsaturating_loss(img_recon_pred)
         unif_loss = self.uniform_loss(gen_res)
         kd_loss = self.kd_motion_loss(gen_res)
 

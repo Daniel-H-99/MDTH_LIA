@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES=0,1 python train.py --resume_ckpt /mnt/hdd/minyeong_workspace/checkpoints/MDTH_LIA/noise_0.2_unif/checkpoint/018000.pt --exp_name noise_0.2_unif
+CUDA_VISIBLE_DEVICES=0,1 python train.py --resume_ckpt /mnt/hdd/minyeong_workspace/checkpoints/lia/000000.pt --exp_name noise_0.1_v3
